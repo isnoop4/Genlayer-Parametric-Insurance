@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Parametric Flight Insurance — GenLayer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    box-sizing: border-box;
+    --bg: #F5F0E3;
+    --paper: #FFFDF7;
+    --ink: #16213F;
+    --ink-soft: rgba(22,33,63,0.60);
+    --amber: #9A5F0B;
+    --ok: #1F7A4D;
+    --delay: #AE3A22;
+    --line: rgba(22,33,63,0.16);
+    --stub-bg: #FFFDF7;
+    --mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0A0E22;
+      --paper: #121933;
+      --ink: #F1ECDD;
+      --ink-soft: rgba(241,236,221,0.62);
+      --amber: #F0A93B;
+      --ok: #6FCF97;
+      --delay: #F28C5C;
+      --line: rgba(241,236,221,0.16);
+      --stub-bg: #121933;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0A0E22;
+    --paper: #121933;
+    --ink: #F1ECDD;
+    --ink-soft: rgba(241,236,221,0.62);
+    --amber: #F0A93B;
+    --ok: #6FCF97;
+    --delay: #F28C5C;
+    --line: rgba(241,236,221,0.16);
+    --stub-bg: #121933;
+  }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  img, svg { max-width: 100%; }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 0 22px; }
+  @media (min-width: 760px) { .wrap { max-width: 760px; } }
+
+  /* ---------- Hero / departure board ---------- */
+  .hero {
+    padding: 48px 0 34px;
+    border-bottom: 1px solid var(--line);
+  }
+  .kicker {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    letter-spacing: 0.02em;
+    color: var(--ink-soft);
+    margin: 0 0 14px;
+  }
+  h1 {
+    font-family: var(--sans);
+    font-weight: 600;
+    font-size: clamp(2.1rem, 7vw, 3rem);
+    line-height: 1.05;
+    letter-spacing: -0.01em;
+    margin: 0 0 16px;
+  }
+  .lede {
+    font-size: 1.05rem;
+    color: var(--ink-soft);
+    max-width: 46ch;
+    margin: 0 0 30px;
+  }
+
+  .board {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: 0 1px 0 var(--line);
+  }
+  .board-head {
+    display: grid;
+    grid-template-columns: 1.3fr 1fr 1fr;
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.06em;
+    color: var(--ink-soft);
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--line);
+  }
+  .board-row {
+    display: grid;
+    grid-template-columns: 1.3fr 1fr 1fr;
+    align-items: center;
+    padding: 14px 16px;
+    font-family: var(--mono);
+    border-bottom: 1px solid var(--line);
+  }
+  .board-row:last-child { border-bottom: none; }
+  .flap {
+    display: inline-block;
+    animation: flapIn 480ms ease-out both;
+  }
+  .board-row:nth-child(2) .flap { animation-delay: 60ms; }
+  .board-row:nth-child(3) .flap { animation-delay: 160ms; }
+  @keyframes flapIn {
+    from { opacity: 0; transform: rotateX(55deg) translateY(-2px); }
+    to   { opacity: 1; transform: rotateX(0) translateY(0); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .flap { animation: none; }
+  }
+  .flight-code { font-weight: 600; font-size: 0.95rem; }
+  .route { font-size: 0.78rem; color: var(--ink-soft); margin-top: 2px; }
+  .status-ontime { color: var(--ok); font-weight: 600; font-size: 0.85rem; }
+  .status-delayed { color: var(--delay); font-weight: 600; font-size: 0.85rem; }
+  .delay-mins { font-size: 0.85rem; }
+
+  /* ---------- Section shell ---------- */
+  section { padding: 44px 0; border-bottom: 1px solid var(--line); }
+  section:last-of-type { border-bottom: none; }
+  h2 {
+    font-family: var(--sans);
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin: 0 0 8px;
+  }
+  .section-note {
+    color: var(--ink-soft);
+    font-size: 0.95rem;
+    max-width: 52ch;
+    margin: 0 0 28px;
+  }
+
+  /* ---------- How it works ---------- */
+  .steps { display: flex; flex-direction: column; }
+  .step {
+    display: grid;
+    grid-template-columns: 34px 1fr;
+    gap: 14px;
+    padding: 18px 0;
+    border-top: 1px solid var(--line);
+  }
+  .step:first-child { border-top: none; }
+  .step-num {
+    font-family: var(--mono);
+    color: var(--amber);
+    font-weight: 600;
+    font-size: 0.95rem;
+    padding-top: 2px;
+  }
+  .step h3 {
+    margin: 0 0 4px;
+    font-size: 1.02rem;
+    font-weight: 600;
+  }
+  .step p { margin: 0; color: var(--ink-soft); font-size: 0.94rem; }
+
+  /* ---------- Ticket / boarding pass stub ---------- */
+  .ticket {
+    background: var(--stub-bg);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+  .ticket-main { padding: 20px 20px 16px; }
+  .ticket-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 12px;
+  }
+  .ticket-label {
+    font-family: var(--mono);
+    font-size: 0.66rem;
+    color: var(--ink-soft);
+    letter-spacing: 0.05em;
+  }
+  .ticket-val { font-family: var(--mono); font-size: 0.92rem; font-weight: 500; }
+  .perf {
+    border-top: 1px dashed var(--line);
+    position: relative;
+    margin: 4px 0 0;
+  }
+  .perf::before, .perf::after {
+    content: "";
+    position: absolute;
+    top: -9px;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--bg);
+  }
+  .perf::before { left: -29px; }
+  .perf::after { right: -29px; }
+  .ticket-stub {
+    padding: 16px 20px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .outcome {
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: 1.05rem;
+    letter-spacing: 0.02em;
+  }
+  .outcome.paid { color: var(--delay); }
+  .outcome.nopay { color: var(--ok); }
+  .consensus-tag {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--ink-soft);
+  }
+  .demo-results { display: flex; flex-direction: column; gap: 22px; }
+
+  /* ---------- Interactive demo ---------- */
+  .demo-panel {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 22px;
+  }
+  .preset-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 22px; }
+  .preset-btn {
+    font-family: var(--mono);
+    font-size: 0.82rem;
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--ink);
+    padding: 9px 14px;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .preset-btn[aria-pressed="true"] {
+    border-color: var(--amber);
+    color: var(--amber);
+  }
+  .field { margin-bottom: 18px; }
+  .field label {
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    color: var(--ink-soft);
+    margin-bottom: 8px;
+  }
+  .field output { color: var(--ink); font-weight: 600; }
+  input[type="range"] {
+    width: 100%;
+    accent-color: var(--amber);
+  }
+  .demo-result {
+    margin-top: 22px;
+    border-top: 1px solid var(--line);
+    padding-top: 18px;
+  }
+  .demo-result .outcome { display: block; margin-bottom: 8px; }
+  .code-line {
+    font-family: var(--mono);
+    font-size: 0.82rem;
+    color: var(--ink-soft);
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 10px 12px;
+    overflow-x: auto;
+  }
+
+  /* ---------- Contract / validators ---------- */
+  .kv { display: flex; flex-direction: column; }
+  .kv-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px 0;
+    border-top: 1px solid var(--line);
+    font-family: var(--mono);
+    font-size: 0.86rem;
+  }
+  .kv-row:first-child { border-top: none; }
+  .kv-key { color: var(--ink-soft); }
+  .kv-val { text-align: right; word-break: break-all; }
+  .copy-btn {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    color: var(--amber);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0 0 0 8px;
+  }
+  .fn-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 6px;
+  }
+  .fn-pill {
+    font-family: var(--mono);
+    font-size: 0.76rem;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    padding: 4px 9px;
+  }
+
+  .validators { margin-top: 26px; }
+  .validators h3 { font-size: 1rem; margin: 0 0 4px; }
+  .validators .section-note { margin-bottom: 16px; }
+  .vstub {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 11px 0;
+    border-top: 1px solid var(--line);
+    font-family: var(--mono);
+    font-size: 0.82rem;
+  }
+  .vstub:first-child { border-top: none; }
+  .vote-agree { color: var(--ok); }
+  .vote-disagree { color: var(--delay); }
+  .vote-idle { color: var(--ink-soft); }
+
+  footer {
+    padding: 32px 0 44px;
+    font-size: 0.82rem;
+    color: var(--ink-soft);
+  }
+  footer a { color: var(--ink-soft); }
+
+  ::selection { background: var(--amber); color: var(--paper); }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <header class="hero">
+    <p class="kicker">GenLayer Intelligent Contract</p>
+    <h1>Parametric flight insurance that pays itself out</h1>
+    <p class="lede">No claim form, no adjuster. Buy a policy against a flight, and if it lands late past your threshold, five independent AI validators read the real flight status and settle the payout on-chain automatically.</p>
+
+    <button class="preset-btn" id="btn-download" style="margin-bottom:26px;">Download this page</button>
+
+    <div class="board">
+      <div class="board-head">
+        <span>FLIGHT</span><span>STATUS</span><span>DELAY</span>
+      </div>
+      <div class="board-row">
+        <div>
+          <div class="flap flight-code">GIA406</div>
+          <div class="flap route">CGK → DPS</div>
+        </div>
+        <div class="flap status-ontime">ON TIME</div>
+        <div class="flap delay-mins">0 min</div>
+      </div>
+      <div class="board-row">
+        <div>
+          <div class="flap flight-code">MXD388</div>
+          <div class="flap route">KUL → CGK</div>
+        </div>
+        <div class="flap status-delayed">DELAYED</div>
+        <div class="flap delay-mins">97 min</div>
+      </div>
+    </div>
+  </header>
+
+  <section id="how">
+    <h2>How a policy settles</h2>
+    <p class="section-note">The same three steps every time — no manual review, no waiting on an insurer.</p>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">01</div>
+        <div>
+          <h3>Buy a policy</h3>
+          <p>Name a flight and a date, set a premium and a payout amount, and choose the delay threshold that counts as "late." The premium tops up the shared payout pool.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">02</div>
+        <div>
+          <h3>Validators check the flight</h3>
+          <p>Calling <code>check_and_settle</code> sends five independent AI models to read the flight's actual status. GenLayer's consensus mechanism resolves their answers into one agreed delay figure.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">03</div>
+        <div>
+          <h3>Settlement is automatic</h3>
+          <p>Delay at or above the threshold releases the payout immediately. Below it, the policy simply closes — no payout, no dispute.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="demo">
+    <h2>Try the settlement logic</h2>
+    <p class="section-note">This mirrors the exact comparison inside <code>check_and_settle</code>: delay minutes against your threshold. Load one of two real runs captured from GenLayer Studio, or set your own scenario.</p>
+
+    <div class="demo-panel">
+      <div class="preset-row">
+        <button class="preset-btn" id="btn-ontime" aria-pressed="false">GIA406 · on time</button>
+        <button class="preset-btn" id="btn-delayed" aria-pressed="false">MXD388 · 97 min late</button>
+        <button class="preset-btn" id="btn-custom" aria-pressed="true">Custom scenario</button>
+      </div>
+
+      <div class="field">
+        <label for="delay-slider">Actual delay <output id="delay-out">45</output> min</label>
+        <input type="range" id="delay-slider" min="0" max="180" value="45">
+      </div>
+      <div class="field">
+        <label for="threshold-slider">Payout threshold <output id="threshold-out">60</output> min</label>
+        <input type="range" id="threshold-slider" min="0" max="180" value="60">
+      </div>
+
+      <div class="demo-result">
+        <span class="outcome nopay" id="outcome-text">NO_PAYOUT</span>
+        <div class="code-line" id="code-line">{"status": "on_time", "delay_minutes": 45}</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="verify">
+    <h2>Verify it yourself</h2>
+    <p class="section-note">Reproduce the two outcomes above directly in GenLayer Studio — no wallet needed beyond what Studio already provides.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">01</div>
+        <div>
+          <h3>Open the contract in GenLayer Studio</h3>
+          <p>Go to <span class="ticket-val">studio-next.genlayer.com</span> and load the deployed contract at <span class="ticket-val">0x20Ab40D75D14C5BA33aFE14D4Ec6C3Dd9869E59f</span>.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">02</div>
+        <div>
+          <h3>Fund the pool (once)</h3>
+          <p>Under Write Methods → <code>fund_pool</code>, send a small amount so the pool can cover a payout (e.g. <span class="ticket-val">amount: 2</span>).</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">03</div>
+        <div>
+          <h3>Buy a policy</h3>
+          <p>Under <code>buy_policy</code>, use the on-time example: <span class="ticket-val">flight_number: GIA406, flight_date: 2026-09-24, premium: 1, payout_amount: 1, delay_threshold_minutes: 60</span> — or the delayed example: <span class="ticket-val">flight_number: MXD388, flight_date: 2026-09-24</span>, same other values. Note the returned <span class="ticket-val">policy_id</span>.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">04</div>
+        <div>
+          <h3>Settle it</h3>
+          <p>Under <code>check_and_settle</code>, pass that <span class="ticket-val">policy_id</span>. GIA406 should return <span class="ticket-val">NO_PAYOUT</span>; MXD388 should return <span class="ticket-val">PAID_OUT</span> — matching the Equivalence Principle output shown in the transaction detail (<span class="ticket-val">status</span> and <span class="ticket-val">delay_minutes</span> read live from FlightAware).</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="captured">
+    <h2>Captured from GenLayer Studio</h2>
+    <p class="section-note">Two real <code>check_and_settle</code> calls against the deployed contract, oracle data and all.</p>
+
+    <div class="demo-results">
+      <div class="ticket">
+        <div class="ticket-main">
+          <div class="ticket-row"><span class="ticket-label">FLIGHT</span><span class="ticket-val">GIA406</span></div>
+          <div class="ticket-row"><span class="ticket-label">DATE</span><span class="ticket-val">2026-09-24</span></div>
+          <div class="ticket-row"><span class="ticket-label">ORACLE READ</span><span class="ticket-val">on_time · 0 min</span></div>
+        </div>
+        <div class="perf"></div>
+        <div class="ticket-stub">
+          <span class="outcome nopay">NO_PAYOUT</span>
+          <span class="consensus-tag">4 / 5 validators</span>
+        </div>
+      </div>
+
+      <div class="ticket">
+        <div class="ticket-main">
+          <div class="ticket-row"><span class="ticket-label">FLIGHT</span><span class="ticket-val">MXD388</span></div>
+          <div class="ticket-row"><span class="ticket-label">DATE</span><span class="ticket-val">2026-09-24</span></div>
+          <div class="ticket-row"><span class="ticket-label">ORACLE READ</span><span class="ticket-val">delayed · 97 min</span></div>
+        </div>
+        <div class="perf"></div>
+        <div class="ticket-stub">
+          <span class="outcome paid">PAID_OUT</span>
+          <span class="consensus-tag">4 / 5 validators</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="contract">
+    <h2>The contract</h2>
+    <p class="section-note">Deployed and running on GenLayer Studio (Dev).</p>
+
+    <div class="kv">
+      <div class="kv-row">
+        <span class="kv-key">Address</span>
+        <span class="kv-val">0x20Ab…9E59f
+          <button class="copy-btn" data-copy="0x20Ab40D75D14C5BA33aFE14D4Ec6C3Dd9869E59f">Copy</button>
+        </span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-key">Deploy tx</span>
+        <span class="kv-val">0xdea2c1…86154f
+          <button class="copy-btn" data-copy="0xdea2c12ae358850fdc716a61118ddd8b63ecfbfc437359fc8281fc3a11486154f">Copy</button>
+        </span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-key">Oracle source</span>
+        <span class="kv-val">FlightAware</span>
+      </div>
+    </div>
+
+    <div style="margin-top:20px;">
+      <span class="ticket-label" style="font-family:var(--mono); font-size:0.72rem; color:var(--ink-soft);">METHODS</span>
+      <div class="fn-list">
+        <span class="fn-pill">buy_policy</span>
+        <span class="fn-pill">check_and_settle</span>
+        <span class="fn-pill">fund_pool</span>
+        <span class="fn-pill">get_policy</span>
+        <span class="fn-pill">get_policy_count</span>
+        <span class="fn-pill">get_pool_balance</span>
+      </div>
+    </div>
+
+    <div class="validators">
+      <h3>Consensus on the paid-out policy</h3>
+      <p class="section-note">Five models read the same flight independently — including one genuine disagreement, resolved by majority.</p>
+      <div class="vstub"><span>policy.dev-deepseek</span><span class="vote-agree">Agree</span></div>
+      <div class="vstub"><span>policy.dev-mistral</span><span class="vote-disagree">Disagree</span></div>
+      <div class="vstub"><span>policy.dev-gpt-5.4</span><span class="vote-agree">Agree</span></div>
+      <div class="vstub"><span>policy.dev-deepseek</span><span class="vote-agree">Agree</span></div>
+      <div class="vstub"><span>policy.dev-gemini</span><span class="vote-idle">Cancelled after quorum</span></div>
+    </div>
+  </section>
+
+  <footer>
+    Parametric Flight Insurance is an Intelligent Contract built on GenLayer. Flight status data from FlightAware, verified independently by GenLayer's validator consensus.
+  </footer>
+
+</div>
+
+<script>
+  const delaySlider = document.getElementById('delay-slider');
+  const thresholdSlider = document.getElementById('threshold-slider');
+  const delayOut = document.getElementById('delay-out');
+  const thresholdOut = document.getElementById('threshold-out');
+  const outcomeText = document.getElementById('outcome-text');
+  const codeLine = document.getElementById('code-line');
+  const btnOntime = document.getElementById('btn-ontime');
+  const btnDelayed = document.getElementById('btn-delayed');
+  const btnCustom = document.getElementById('btn-custom');
+  const presetBtns = [btnOntime, btnDelayed, btnCustom];
+
+  function setPressed(active) {
+    presetBtns.forEach(b => b.setAttribute('aria-pressed', b === active ? 'true' : 'false'));
+  }
+
+  function render() {
+    const delay = parseInt(delaySlider.value, 10);
+    const threshold = parseInt(thresholdSlider.value, 10);
+    delayOut.textContent = delay;
+    thresholdOut.textContent = threshold;
+    const status = delay > 0 ? 'delayed' : 'on_time';
+    const paid = delay >= threshold && delay > 0;
+    outcomeText.textContent = paid ? 'PAID_OUT' : 'NO_PAYOUT';
+    outcomeText.className = 'outcome ' + (paid ? 'paid' : 'nopay');
+    codeLine.textContent = '{"status": "' + status + '", "delay_minutes": ' + delay + '}';
+  }
+
+  delaySlider.addEventListener('input', () => { setPressed(btnCustom); render(); });
+  thresholdSlider.addEventListener('input', () => { setPressed(btnCustom); render(); });
+
+  btnOntime.addEventListener('click', () => {
+    delaySlider.value = 0; thresholdSlider.value = 60;
+    setPressed(btnOntime); render();
+  });
+  btnDelayed.addEventListener('click', () => {
+    delaySlider.value = 97; thresholdSlider.value = 60;
+    setPressed(btnDelayed); render();
+  });
+  btnCustom.addEventListener('click', () => { setPressed(btnCustom); render(); });
+
+  render();
+
+  // Copy-to-clipboard for contract address / tx hash
+  document.querySelectorAll('.copy-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const text = btn.getAttribute('data-copy');
+      const original = btn.textContent;
+      try {
+        await navigator.clipboard.writeText(text);
+        btn.textContent = 'Copied';
+      } catch (e) {
+        try {
+          const ta = document.createElement('textarea');
+          ta.value = text;
+          ta.style.position = 'fixed';
+          ta.style.opacity = '0';
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          document.body.removeChild(ta);
+          btn.textContent = 'Copied';
+        } catch (e2) {
+          btn.textContent = 'Copy failed';
+        }
+      }
+      setTimeout(() => { btn.textContent = original; }, 1500);
+    });
+  });
+
+  // Download the page itself (only available inside the claude.ai artifact viewer)
+  const downloadBtn = document.getElementById('btn-download');
+  if (typeof claude !== 'undefined' && typeof claude.use === 'function') {
+    claude.use('downloads').then(downloads => {
+      if (!downloads) { downloadBtn.style.display = 'none'; return; }
+      downloadBtn.addEventListener('click', async () => {
+        const original = downloadBtn.textContent;
+        downloadBtn.textContent = 'Saving…';
+        try {
+          const html = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+          await downloads.save({ filename: 'parametric-flight-insurance.html', data: html });
+          downloadBtn.textContent = 'Saved';
+        } catch (e) {
+          downloadBtn.textContent = 'Could not save';
+        }
+        setTimeout(() => { downloadBtn.textContent = original; }, 1800);
+      });
+    }).catch(() => { downloadBtn.style.display = 'none'; });
+  } else {
+    // Opened as a standalone file outside claude.ai — nothing to save it as, hide the button
+    downloadBtn.style.display = 'none';
+  }
+</script>
+
+</body>
+</html>
