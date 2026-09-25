@@ -3,6 +3,7 @@
 A GenLayer Intelligent Contract that pays out automatically when a flight is delayed — no claim form, no adjuster. Independent AI validators read a flight's real status and settle the policy on-chain.
 
 **Live demo:** https://isnoop4.github.io/Genlayer-Parametric-Insurance/
+
 ## How it works
 
 1. **Buy a policy** — pick a flight, a date, a premium, a payout amount, and a delay threshold (in minutes). The premium tops up the shared payout pool.
