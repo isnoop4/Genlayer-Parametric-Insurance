@@ -1,101 +1,92 @@
-# Parametric Flight Insurance — GenLayer
+# Parametric Flight Insurance
 
-An automated, decentralized parametric flight insurance dApp powered by **GenLayer Intelligent Contracts**.
+A GenLayer Intelligent Contract that pays out automatically when a flight is delayed — no claim form, no adjuster. Independent AI validators read a flight's real status and settle the policy on-chain.
 
-This application eliminates manual claims, adjusters, and traditional oracles. It uses multi-validator AI consensus to fetch live flight status directly from the web and settle insurance payouts on-chain automatically based on delay thresholds.
+**Live demo:** https://isnoop4.github.io/Genlayer-Parametric-Insurance/
+## How it works
 
----
+1. **Buy a policy** — pick a flight, a date, a premium, a payout amount, and a delay threshold (in minutes). The premium tops up the shared payout pool.
+2. **Validators check the flight** — calling `check_and_settle` sends five independent AI models to read the flight's actual status from FlightAware. GenLayer's consensus mechanism resolves their answers into one agreed delay figure.
+3. **Settlement is automatic** — if the delay meets or exceeds the threshold, the payout is released immediately. If not, the policy closes with no payout.
 
-## 🌟 Key Features
+## Contract
 
-- **No Manual Claims**: Payouts are executed programmatically via on-chain contract logic.
-- **AI-Powered Oracle**: Utilizes GenLayer's `web.render` and `exec_prompt` to read real-time flight data (from FlightAware) via 5 independent LLM validators.
-- **Equivalence Consensus**: Requires consensus among validator nodes (status match + delay variance tolerance $\le 15$ mins) to execute state changes.
-- **Interactive Simulator**: Includes a web-based UI with departure board simulations, an interactive delay/threshold slider, and captured execution logs.
+| | |
+|---|---|
+| Network | GenLayer Studio (Dev) |
+| Address | `0x20Ab40D75D14C5BA33aFE14D4Ec6C3Dd9869E59f` |
+| Deploy tx | `0xdea2c12ae358850fdc716a61118ddd8b63ecfbfc437359fc8281fc3a11486154f` |
+| Oracle source | FlightAware |
+| Language | Python (GenVM) |
 
----
-
-## 📋 Steward Review & End-to-End Checklist
-
-This submission is structured to meet all **GenLayer Steward Checklist** requirements:
-
-| Criteria | Status | Notes |
-| :--- | :---: | :--- |
-| **Website Available** | ✅ | Deployed on GitHub Pages via `/docs` directory |
-| **Instructions End-to-End** | ✅ | Clear step-by-step Studio reproduction guide below |
-| **Reproducible Outcomes** | ✅ | Exact test cases (`GIA406` vs `MXD388`) provided |
-| **Contract Link Valid** | ✅ | Verified deployment on GenLayer Studio Next |
-
----
-
-## 🚀 Smart Contract Details
-
-- **Contract Address**: [`0x20Ab40D75D14C5BA33aFE14D4Ec6C3Dd9869E59f`](https://explorer-studio-next.genlayer.com/address/0x20Ab40D75D14C5BA33aFE14D4Ec6C3Dd9869E59f)
-- **Deployment Tx Hash**: `0xdea2c12ae358850fdc716a61118ddd8b63ecfbfc437359fc8281fc3a11486154f`
-- **Environment**: GenLayer Studio (Devnet)
-- **Oracle Data Source**: FlightAware Live Tracking
-
-### Contract Methods
+### Methods
 
 | Method | Type | Description |
-| :--- | :--- | :--- |
-| `fund_pool(amount)` | Write | Owner tops up the simulated payout pool |
-| `buy_policy(...)` | Write | Buyer registers a policy with flight details, premium, and threshold |
-| `check_and_settle(policy_id)` | Write | Triggers AI validators to check flight status and execute settlement |
-| `get_policy(policy_id)` | View | Returns full details of a specific policy |
-| `get_pool_balance()` | View | Returns the current balance in the payout pool |
-| `get_policy_count()` | View | Returns total number of policies issued |
+|---|---|---|
+| `buy_policy(flight_number, flight_date, premium, payout_amount, delay_threshold_minutes)` | write | Creates a new policy. Returns `policy_id`. |
+| `check_and_settle(policy_id)` | write | Triggers the oracle check and settles the policy (`PAID_OUT` or `NO_PAYOUT`). |
+| `fund_pool(amount)` | write | Owner tops up the shared payout pool. |
+| `get_policy(policy_id)` | read | Returns a policy's stored data. |
+| `get_policy_count()` | read | Returns the number of policies created. |
+| `get_pool_balance()` | read | Returns the current payout pool balance. |
 
----
+## Verify it yourself
 
-## 🧪 Step-by-Step Verification Guide (for Stewards & Reviewers)
+Reproduce both outcomes below directly in [GenLayer Studio](https://studio-next.genlayer.com):
 
-To test and verify the execution end-to-end without needing local environment setups, follow these steps in **GenLayer Studio**:
+1. Open the contract at `0x20Ab40D75D14C5BA33aFE14D4Ec6C3Dd9869E59f`.
+2. Under **Write Methods → `fund_pool`**, send a small amount (e.g. `amount: 2`) so the pool can cover a payout.
+3. Under **`buy_policy`**, create a policy using one of the examples below. Note the returned `policy_id`.
+4. Under **`check_and_settle`**, pass that `policy_id` and confirm the output matches.
 
-1. **Open the Deployed Contract**:
-   Navigate to [GenLayer Studio Next](https://studio-next.genlayer.com) and load contract address:
-   `0x20Ab40D75D14C5BA33aFE14D4Ec6C3Dd9869E59f`
+## Captured test results
 
-2. **Fund the Pool** *(Write Method)*:
-   - Call `fund_pool` with `amount: 2` (or more) so the contract has sufficient balance to cover payouts.
+Two real `check_and_settle` calls against the deployed contract, oracle data and all.
 
-3. **Buy Policies** *(Write Method)*:
-   - **Test Case 1 (On-time flight -> `NO_PAYOUT`)**:
-     - `flight_number`: `GIA406`
-     - `flight_date`: `2026-09-24`
-     - `premium`: `1`, `payout_amount`: `1`, `delay_threshold_minutes`: `60`
-     - *Note the returned `policy_id` (e.g., `0`)*.
-   - **Test Case 2 (Delayed flight -> `PAID_OUT`)**:
-     - `flight_number`: `MXD388`
-     - `flight_date`: `2026-09-24`
-     - `premium`: `1`, `payout_amount`: `1`, `delay_threshold_minutes`: `60`
-     - *Note the returned `policy_id` (e.g., `1`)*.
+**No payout — flight on time**
+```
+flight_number: GIA406
+flight_date: 2026-09-24
+premium: 1
+payout_amount: 1
+delay_threshold_minutes: 60
 
-4. **Trigger Settlement** *(Write Method)*:
-   - Call `check_and_settle` with `policy_id` for `GIA406` $\rightarrow$ Returns **`NO_PAYOUT`**.
-   - Call `check_and_settle` with `policy_id` for `MXD388` $\rightarrow$ Returns **`PAID_OUT`**.
+Oracle read: {"status": "on_time", "delay_minutes": 0}
+Output: NO_PAYOUT
+Consensus: 4/5 validators
+```
 
----
+**Paid out — flight delayed**
+```
+flight_number: MXD388
+flight_date: 2026-09-24
+premium: 1
+payout_amount: 1
+delay_threshold_minutes: 60
 
-## 💻 GitHub Pages Setup (with `/docs` folder)
+Oracle read: {"status": "delayed", "delay_minutes": 97}
+Output: PAID_OUT
+Consensus: 4/5 validators (1 genuine disagreement, resolved by majority)
+```
 
-Because `index.html` is located inside the `docs/` folder, setting up GitHub Pages is very straightforward:
+## Frontend
 
-1. Push your repository to GitHub.
-2. Go to **Settings** $\rightarrow$ **Pages** in your GitHub repository.
-3. Under **Build and deployment** $\rightarrow$ **Branch**:
-   - Select **`main`** (or `master`).
-   - Select **`/docs`** as the source folder.
-4. Click **Save**. Your site will be live automatically!
+A single self-contained `index.html` — no build step, no dependencies beyond Google Fonts. Hosted as a static page (GitHub Pages compatible).
 
----
+Run locally:
+```
+python -m http.server 8080
+```
+Then open `http://localhost:8080/`.
 
-## 📁 Repository Structure
+## Repository layout
 
-```text
-.
-├── Contracts/
-│   └── parametric_flight_insurance.py  # GenLayer Intelligent Contract (Python)
-├── docs/
-│   └── index.html                      # Self-contained Frontend UI & Interactive Simulator
-└── README.md                           # Project Documentation & Verification Guide
+```
+index.html    # Frontend — project explainer, interactive settlement-logic demo, verification steps
+README.md     # This file
+```
+
+## Notes
+
+- The frontend's interactive demo simulates the settlement comparison (`delay_minutes` vs `delay_threshold_minutes`) client-side for illustration. Actual settlement happens on-chain via `check_and_settle`, verified through GenLayer's validator consensus as shown above.
+- This is a testnet build on GenLayer Studio (Dev) — not production software.
